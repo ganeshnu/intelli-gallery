@@ -1,0 +1,46 @@
+# Name of the GitHub Actions workflow
+name: Deploy to Cloud Run & GCS - Dev
+
+# This workflow runs on any push to the 'develop' branch
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    # We need to give GitHub permissions to request an OIDC token
+    permissions:
+      contents: read
+      id-token: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Image Processor Service
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: image-processor-dev # ❗️ CHANGE THIS
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          source: ./image-processor # ❗️ CHANGE THIS
+          region: us-central1 # ❗️ CHANGE THIS
+
+      - name: Deploy Main Gallery Service
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: intelli-gallery-dev # ❗️ CHANGE THIS
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          source: ./Intelli-Gallery # ❗️ CHANGE THIS
+          region: us-central1 # ❗️ CHANGE THIS
+
+      - name: Deploy Frontend to Cloud Storage
+        run: |-
+          gcloud storage rsync ./IGP_frontend gs://${{ secrets.GCP_DEV_BUCKET_NAME }} --recursive --delete-unmatched-destination-objects
